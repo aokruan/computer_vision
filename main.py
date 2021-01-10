@@ -1,50 +1,32 @@
-import time
 import cv2
-from imageai.Detection import ObjectDetection
+import pytesseract
+from imutils import contours
 
-# Для получения видеопотока с камеры
-camera = cv2.VideoCapture(0)
+# Расположение tesseract в системе
+pytesseract.pytesseract.tesseract_cmd = "D:\Program Files\Tesseract-OCR\\tesseract.exe"
 
-# Для получения видеопотока с видео
-# camera = cv2.VideoCapture("videoplayback1.mp4")
+image = cv2.imread("ex10.jpg")
+height, width, _ = image.shape
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+imS = cv2.resize(gray, (960, 540))
 
-# Подключаем библиотеку
-detector = ObjectDetection()
-detector.setModelTypeAsTinyYOLOv3()
-detector.setModelPath("yolo-tiny.h5")
-detector.loadModel()
+thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)[1]
+cnts = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+cnts, _ = contours.sort_contours(cnts[0])
 
-finish = 0
-array_detection = []
+for c in cnts:
+    area = cv2.contourArea(c)
+    x, y, w, h = cv2.boundingRect(c)
+    if area > 5000:
+        img = image[y:y + h, x:x + w]
+        result = pytesseract.image_to_string(img, lang="rus")
+        if len(result) > 7:
+            print(result)
 
-while camera.isOpened():
-    ret, frame = camera.read()
+# Отображение изображения в окне
+# cv2.imshow("output", thresh)
 
-    start = time.time()
-    if start - finish > 2:
-        _, array_detection = detector.detectObjectsFromImage(input_image=frame, input_type="array", output_type="array")
-        finish = time.time()
-        print(array_detection)
+# Закрыть окно по любому нажатию
+# cv2.waitKey()
 
-    for obj in array_detection:
-        coord = obj["box_points"]
-        cv2.rectangle(frame, (coord[0], coord[1]), (coord[2], coord[3]), (0, 0, 255))
-        cv2.putText(frame, obj["name"], (coord[0], coord[1] - 6), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 1)
 
-    cv2.imshow("Test", frame)
-    if cv2.waitKey(25) & 0xFF == ord("q"):
-        break
-cv2.destroyAllWindows()
-exit(-1)
-
-# from imageai.Detection import ObjectDetection
-#
-# detector = ObjectDetection()
-# detector.setModelTypeAsTinyYOLOv3()
-# detector.setModelPath("yolo-tiny.h5")
-# detector.loadModel()
-#
-# # Генерируем новое изображение с выделением границ
-# # detector.detectObjectsFromImage(input_image="1.jpg", output_image_path="new_image.jpg")
-# array_detection = detector.detectObjectsFromImage(input_image="1.jpg", output_image_path="new_image.jpg")
-# print(array_detection)
